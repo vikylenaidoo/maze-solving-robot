@@ -11,6 +11,9 @@
 //========================
 //DEFINE CONSTANTS
 //========================
+enum direction {
+	LEFT
+};
 
 
 
@@ -20,6 +23,8 @@
 void init_GPIOA(void); // for inputs
 void init_GPIOB(void); // for outputs
 void init_PWM(void);
+void goForward(int speed);
+void turn(int direction);
 
 
 
