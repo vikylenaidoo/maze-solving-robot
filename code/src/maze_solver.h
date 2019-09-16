@@ -11,9 +11,17 @@
 //========================
 //DEFINE CONSTANTS
 //========================
-enum direction {
-	LEFT
-};
+typedef enum {
+	LEFT,
+	RIGHT
+} direction;
+
+typedef enum {
+	WEST,
+	NORTH,
+	EAST,
+	SOUTH
+} cardinal;
 
 
 
@@ -23,10 +31,11 @@ enum direction {
 void init_GPIOA(void); // for inputs
 void init_GPIOB(void); // for outputs
 void init_PWM(void);
-void goForward(int speed);
-void turn(int direction);
 
-
+void drive(int speed);
+void turn(direction d); //rotate 90* in the given direction
+void turnAround(int k); //rotate k*180 degrees
+void brake(void);
 
 
 
