@@ -10,13 +10,13 @@
 #include <stdbool.h>
 #include <math.h>
 #include "maze_solver.h"
-
+//#include <time.h>
+#include "Node.c"
 
 //========================
 //DEFINE GLOBAL VARIABLES
 //========================
-
-
+head = (struct node*) malloc(sizeof(struct node)); //beginning of list of nodes . note: head is a pointer
 
 
 
@@ -26,7 +26,6 @@
 //MAIN IMPLEMENTATION
 //========================
 void main(void){
-
 
 }
 
@@ -193,13 +192,25 @@ void turn(direction d){
 		TIM1->CCR4 = 100*speed;
 		break;
 	default: //indicate error
-		turnAround(4);
+		turnAround(4); //or flash leds maybe?
 	}
+
+	sleep(2); //
+	brake();
 
 }
 
 void turnAround(){
+	int speed = 10;
+	//left wheel
+	TIM1->CCR1 = 0;
+	TIM1->CCR2 = 100*speed;
+	//right wheel
+	TIM1->CCR3 = 100*speed;
+	TIM1->CCR4 = 0;
 
+	sleep(5); //turn for 5 seconds
+	brake();
 
 }
 
@@ -208,7 +219,33 @@ void turnAround(){
 //========================
 
 void EXTI4_15_IRQHANDLER(){ //controls lines 4 to 15: mapped to inputs from sensors (PB4-PB8)
+	//TODO: confirm sensor topological config. Does the tail swing alot?
 
+	// 1st interrupt wil trigger and disable other interruots until the PR flag is reset;
+
+	//lines pb4 to pb8 used for sensor inputs
+	int s1 = (GPIOB->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
+	int s2 = (GPIOB->IDR & GPIO_IDR_5)>>5;
+	int s3 = (GPIOB->IDR & GPIO_IDR_6)>>6;
+	int s4 = (GPIOB->IDR & GPIO_IDR_7)>>7;
+	int s5 = (GPIOB->IDR & GPIO_IDR_8)>>8;
+
+	GPIOA->ODR &= ~(GPIO_ODR_8 + GPIO_ODR_9 + GPIO_ODR_10+ GPIO_ODR_11);
+
+	if(s1){
+		GPIOA->ODR = GPIO_ODR_8;
+	}
+	if(s1){
+			GPIOA->ODR = GPIO_ODR_9;
+	}
+	if(s1){
+			GPIOA->ODR = GPIO_ODR_10;
+	}
+	if(s1){
+			GPIOA->ODR = GPIO_ODR_11;
+	}
+
+	EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
 }
 

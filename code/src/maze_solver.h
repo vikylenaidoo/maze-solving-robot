@@ -12,16 +12,26 @@
 //DEFINE CONSTANTS
 //========================
 typedef enum {
-	LEFT,
-	RIGHT
+	LEFT, //0
+	RIGHT //1
 } direction;
 
 typedef enum {
-	WEST,
-	NORTH,
-	EAST,
-	SOUTH
+	WEST,	//0
+	NORTH,	//1
+	EAST,	//2
+	SOUTH	//3
 } cardinal;
+
+typedef enum { //how many distinct paths from each type of junction need to be distinclty explored
+	LEFT_TURN = 1,
+	RIGHT_TURN = 1,
+	T_JUNCTION = 3,
+	FOUR_WAY = 4,
+	LEFT_BRANCH = 2,
+	RIGHT_BRANCH = 2
+
+}junction_type;
 
 
 

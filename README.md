@@ -80,13 +80,13 @@ functionality
     
     -counts how many times the point needs to be explored based on the nature of the junction
 
-*counter array  // is this not redundant with explored array ?
+*point/node array 
     
-    -counts how many explorations are still required for a specific point
+    -unique identifier for each node/point in the sequnce that they are exlored
 
 *explored array
     
-    -keeps record how many times a junction point is differently explored by the robot.
+    -keeps record how many times a junction point has been differently explored by the robot.
 
 *counting variable: total points discovered
 
