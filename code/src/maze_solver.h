@@ -8,8 +8,16 @@
 #ifndef MAZE_SOLVER_H_
 #define MAZE_SOLVER_H_
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <math.h>
+#include <unistd.h>
+
+#include "stm32f0xx.h"
 //========================
-//DEFINE CONSTANTS
+//DEFINE CONSTANTS and GLOBALS
 //========================
 typedef enum {
 	LEFT, //0
@@ -32,6 +40,17 @@ typedef enum { //how many distinct paths from each type of junction need to be d
 	RIGHT_BRANCH = 2
 
 }junction_type;
+
+extern struct Node* head;
+extern struct Node* tail;
+
+
+
+
+
+
+
+
 
 
 

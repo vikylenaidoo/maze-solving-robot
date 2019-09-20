@@ -1,56 +1,28 @@
 /*
  * Node.c
  *
- *  Create a struct to represent a node/ point of turning on the maze.
- *  A linked list of these nodes will be present in the main program to keep a record of all discovered
+ *  Created on: 19 Sep 2019
+ *      Author: vikylenaidoo
  */
-
-#include "maze_solver.h";
-#include <stdio.h>
-#include <stdlib.h>
-
-//TODO
+#include "maze_solver.h"
+#include "Node.h"
 
 
 
-//note: need to set head in the main program
-extern struct Node *head = NULL;
-extern struct Node *tail = NULL;
+//=====================================
+//IMPLEMENT NODE FUNCTIONS
+//===================================
 
-struct Node{
-
-	int key; //unique identifier /primary key
-
-	int coordinates[2]; // x and y coordinates
-	junction_type j_type;
-	int explored; //how many times has this been differently explored
-
-	struct Node *prev;
-	struct Node *next; //links to the next node in the linked list
-
-};
-
-//define linked list functions
-void insertFirst(int key, int coordinates[2], junction_type j_type, int explored);
-void insertFirst(int key, int coordinates[2], junction_type j_type, int explored);
-struct Node* deleteFirst();
-struct Node* delete(int key);
-struct Node* find(int key);
-struct Node* findNext();
-struct Node* findPrev();
-
-
-
-
-//implement linked list functions
 //NOTE: "first" = head	"last" = tail
 
 /*Insert new node at beginning of linked list*/
-void insertFirst(int key, int *coordinates[2], junction_type j_type, int explored){
+void insertFirst(int key, int coordinates[2], junction_type j_type, int explored){
 
 	struct Node* newNode =  (struct Node*) malloc(sizeof(struct Node));
 	newNode->key = key;
-	newNode->coordinates = coordinates;
+	newNode->coordinates[0] = coordinates[0];
+	newNode->coordinates[1] = coordinates[1];
+	//memcpy(newNode->coordinates, coordinates, sizeof(coordinates)/sizeof(coordinates[0]));
 	newNode->j_type = j_type;
 	newNode->explored = explored;
 
@@ -59,10 +31,12 @@ void insertFirst(int key, int *coordinates[2], junction_type j_type, int explore
 	head = newNode;
 }
 
+/*Insert new node at end of linked list*/
 void insertLast(int key, int coordinates[2], junction_type j_type, int explored){
 	struct Node* newNode =  (struct Node*) malloc(sizeof(struct Node));
 	newNode->key = key;
-	newNode->coordinates = coordinates;
+	newNode->coordinates[0] = coordinates[0];
+	newNode->coordinates[1] = coordinates[1];
 	newNode->j_type = j_type;
 	newNode->explored = explored;
 
@@ -87,6 +61,7 @@ struct Node* deleteLast(){
 	return link;
 }
 
+
 /*Return the Node with the specified key*/
 struct Node* find(int key){
 	struct Node* current = head;
@@ -101,6 +76,8 @@ struct Node* find(int key){
 
 	return current;
 }
+
+
 
 /*delete and Return the Node with the specified key TODO: Maybe free(current) to clear memory?*/
 struct Node* delete(int key){
@@ -123,17 +100,16 @@ struct Node* delete(int key){
 	return current;
 }
 
+
+
 /*find and return the next node*/
-struct Node findNext(struct Node *current){
+struct Node* findNext(struct Node *current){
 	return current->next;
 
 }
 
+
 /*find and return the prev node*/
-struct Node findPrev(struct Node *current){
+struct Node* findPrev(struct Node *current){
 	return current->prev;
 }
-
-
-
-

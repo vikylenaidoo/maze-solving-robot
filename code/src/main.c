@@ -4,28 +4,27 @@
 //========================
 //IMPORT LIBRARIES
 //========================
-#include "stm32f0xx.h"
-#include <stdint.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <math.h>
+
 #include "maze_solver.h"
 //#include <time.h>
-#include "Node.c"
+#include "Node.h"
 
 //========================
 //DEFINE GLOBAL VARIABLES
 //========================
-head = (struct node*) malloc(sizeof(struct node)); //beginning of list of nodes . note: head is a pointer
 
-
-
-
+struct Node* head;
 
 //========================
 //MAIN IMPLEMENTATION
 //========================
 void main(void){
+
+	//head =  (struct Node*) malloc(sizeof(struct Node));
+	init_GPIOA();
+	init_GPIOB();
+	init_PWM();
+	deleteFirst();
 
 }
 
@@ -62,6 +61,10 @@ void init_GPIOA(void){ //used for outputs
 }
 
 
+/* USE LINES PB4 TO PB8 FOR SENSOR INPUTS
+ * USE LINES PA8 TO PA11 FOR OUTPUTS TO MOTOR DRIVER
+ *
+ * */
 void init_GPIOB(void){// used for inputs
 	RCC  ->AHBENR |= RCC_AHBENR_GPIOBEN;
 
@@ -112,7 +115,9 @@ void init_GPIOB(void){// used for inputs
 
 }
 
-void init_PWM(void){ //using TIM1 for PWM: use pa8 - pa11 for motor driver control lines
+/* using TIM1 for PWM: use pa8 - pa11 for motor driver control lines
+ * */
+void init_PWM(void){
 	// TODO: choose frequency
 
 	RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
@@ -200,7 +205,7 @@ void turn(direction d){
 
 }
 
-void turnAround(){
+void turnAround(int k){
 	int speed = 10;
 	//left wheel
 	TIM1->CCR1 = 0;
@@ -218,10 +223,11 @@ void turnAround(){
 //INTEERRUPT HANDLERS8
 //========================
 
-void EXTI4_15_IRQHANDLER(){ //controls lines 4 to 15: mapped to inputs from sensors (PB4-PB8)
+/*controls lines 4 to 15: mapped to inputs from sensors (PB4-PB8)*/
+void EXTI4_15_IRQHANDLER(){
 	//TODO: confirm sensor topological config. Does the tail swing alot?
 
-	// 1st interrupt wil trigger and disable other interruots until the PR flag is reset;
+	// 1st interrupt will trigger and disable other interruots until the PR flag is reset;
 
 	//lines pb4 to pb8 used for sensor inputs
 	int s1 = (GPIOB->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
@@ -230,19 +236,23 @@ void EXTI4_15_IRQHANDLER(){ //controls lines 4 to 15: mapped to inputs from sens
 	int s4 = (GPIOB->IDR & GPIO_IDR_7)>>7;
 	int s5 = (GPIOB->IDR & GPIO_IDR_8)>>8;
 
-	GPIOA->ODR &= ~(GPIO_ODR_8 + GPIO_ODR_9 + GPIO_ODR_10+ GPIO_ODR_11);
+	GPIOA->ODR &= ~(GPIO_ODR_8|GPIO_ODR_9|GPIO_ODR_10|GPIO_ODR_11);//clear bits 8 to 11 for ODR
 
 	if(s1){
 		GPIOA->ODR = GPIO_ODR_8;
 	}
-	if(s1){
+	if(s2){
 			GPIOA->ODR = GPIO_ODR_9;
 	}
-	if(s1){
+	if(s3){
 			GPIOA->ODR = GPIO_ODR_10;
 	}
-	if(s1){
+	if(s4){
 			GPIOA->ODR = GPIO_ODR_11;
+	}
+	if(s5){
+		GPIOA->ODR = GPIO_ODR_8|GPIO_ODR_9|GPIO_ODR_10|GPIO_ODR_11;
+
 	}
 
 	EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
