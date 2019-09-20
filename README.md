@@ -94,9 +94,20 @@ functionality
 
 
 
+GPIO
+--------------------------
 
+*INPUTS (used PortB)
 
+    -PB4 to PB8 used for inputs from the sensors
 
+    -PB0 used for starting the mapping/maze finding process
+
+    -PB1 used for starting the racing process 
+
+*OUTPUTS (used PortA)
+    -PA8 to PA11 for outputs to motor driver
+    -PA0 for LED output
 
 
 optimisation
