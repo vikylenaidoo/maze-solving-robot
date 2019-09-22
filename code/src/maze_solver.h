@@ -60,7 +60,8 @@ typedef struct{
 }State;
 
 
-
+extern struct Node* head;
+extern struct Node* tail;
 
 
 

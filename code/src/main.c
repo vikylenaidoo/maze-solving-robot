@@ -210,23 +210,23 @@ void init_PWM(void){
 //IMPLMENT FUNCTIONS
 //========================
 void brake(void){
-	TIM1->CCR1 = 100*100;
-	TIM1->CCR2 = 100*100;
-	TIM1->CCR3 = 100*100;
-	TIM1->CCR4 = 100*100;
+	TIM3->CCR1 = 40*100;
+	TIM3->CCR2 = 40*100;
+	TIM3->CCR3 = 40*100;
+	TIM3->CCR4 = 40*100;
 }
 
 void drive(int speed){ //speed ~ duty cycle between [0; 100]
 	//TODO figure out calibration
 
 	//left wheel
-	TIM1->CCR1 = 100*speed;
-	TIM1->CCR2 = 0;
+	TIM3->CCR1 = 40*speed;
+	TIM3->CCR2 = 0;
 
 
 	//right wheel
-	TIM1->CCR3 = 100*speed;
-	TIM1->CCR4 = 0;
+	TIM3->CCR3 = 40*speed;
+	TIM3->CCR4 = 0;
 
 }
 
@@ -239,24 +239,24 @@ void turn(direction d){
 	case LEFT:
 		//left wheel
 		TIM1->CCR1 = 0;
-		TIM1->CCR2 = 100*speed;
+		TIM1->CCR2 = 40*speed;
 		//right wheel
-		TIM1->CCR3 = 100*speed;
+		TIM1->CCR3 = 400*speed;
 		TIM1->CCR4 = 0;
 		break;
 	case RIGHT:
 		//left wheel
-		TIM1->CCR1 = 100*speed;
+		TIM1->CCR1 = 40*speed;
 		TIM1->CCR2 = 0;
 		//right wheel
 		TIM1->CCR3 = 0;
-		TIM1->CCR4 = 100*speed;
+		TIM1->CCR4 = 40*speed;
 		break;
 	default: //indicate error
 		turnAround(4); //or flash leds maybe?
 	}
 
-	sleep(2); //
+	//delay for some time
 	brake();
 
 }
@@ -270,11 +270,36 @@ void turnAround(int k){
 	TIM1->CCR3 = 100*speed;
 	TIM1->CCR4 = 0;
 
-	sleep(5*k); //turn for 5 seconds
+	//delay for some time
 	brake();
 
 }
 
+/*turn slightly while still going forward*/
+void slightTurn(direction d){
+
+		switch(d){
+		case LEFT:
+			//left wheel
+			TIM1->CCR1 = 60*forward_speed;
+			TIM1->CCR2 = 0;
+			//right wheel
+			TIM1->CCR3 = 80*forward_speed;
+			TIM1->CCR4 = 0;
+			break;
+		case RIGHT:
+			//left wheel
+			TIM1->CCR1 = 80*forward_speed;
+			TIM1->CCR2 = 0;
+			//right wheel
+			TIM1->CCR3 = 60*forward_speed;
+			TIM1->CCR4 = 0;
+			break;
+		default: //indicate error
+			turnAround(4); //or flash leds maybe? //should never actually occur
+		}
+
+}
 
 /*check wheteher the combination of states are corresponding to the given state*/
 bool stateCompare(State state1, State state2){
