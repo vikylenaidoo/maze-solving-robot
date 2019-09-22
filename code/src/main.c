@@ -13,9 +13,13 @@
 //DEFINE GLOBAL VARIABLES
 //========================
 
-mode MODE;
-bool isStarted;
+#define forward_speed 80//used for movement control
 
+mode MODE; //MAPPING or RACING
+bool isStarted;
+int last_time;//used for storing the time captured at the last(previous) detected node
+int key; //primary key/id for the Node list
+cardinal cardinal_direction; //the absolute direction which the car is travelling (NSEW)
 
 //used for storing reuslt of mapping
 struct Node* head;
@@ -40,8 +44,7 @@ State DRIFT_LEFT 	= {WHITE, WHITE, WHITE, WHITE, BLACK};
 State DRIFT_RIGHT 	= {WHITE, WHITE, WHITE, BLACK, WHITE};
 State FINISH 		= {BLACK, BLACK, BLACK, BLACK, BLACK};
 
-//used for movement control
-#define forward_speed 80
+
 
 //========================
 //MAIN IMPLEMENTATION
@@ -53,24 +56,35 @@ void main(void){
 	init_GPIOB();
 	init_PWM();
 
-	isStarted = 0;
+	isStarted = 0; //initially not started
 	mode MODE = MAPPING; //start off mapping the after button is prssed change to RACING
 	init_LCD();
 	lcd_command(CLEAR);
+
 	while(true){
+
 		while(isStarted){
 
 
 			if(MODE==MAPPING){
+				//set initial Mapping parameters
 				current_coordinates[0] = 0; //set x=0
 				current_coordinates[1] = 0; //set y=0
+				key=0;
+				last_time=0;
+				cardinal_direction = NORTH;
 
-				drive(50);
+				while(MODE==MAPPING){
+					drive(50);
+
+				}
+
+
 
 
 			}
 			else{
-				if(MODE==RACING){
+				while(MODE==RACING){
 
 
 				}
@@ -113,16 +127,31 @@ void init_GPIOA(void){ //used for outputs
 		GPIOA->MODER &= ~GPIO_MODER_MODER7;
 		GPIOA->MODER &= ~GPIO_MODER_MODER8;
 
+		GPIOA->MODER &= ~GPIO_MODER_MODER0; //use to set start
+		GPIOA->MODER &= ~GPIO_MODER_MODER1; // use to set mode
+		GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0_0;
+		GPIOA->PUPDR |= GPIO_PUPDR_PUPDR1_0;
 
 		//CONFIGURE INTERRUPTS
 		RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN; //enable clock for syscfg
 
+		//for sensors
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI4_PA; //map pa4 to exti4
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI5_PA; //map pa5 to exti5
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI6_PA;
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI7_PA;
 		SYSCFG->EXTICR[3] |= SYSCFG_EXTICR3_EXTI8_PA;
 
+		//for button inputs
+		SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA;
+		SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI1_PA;
+
+
+		EXTI->IMR |= EXTI_IMR_MR0; //UNMASK EXTI0
+		EXTI->FTSR |= EXTI_FTSR_TR0; // trigger on falling edge
+
+		EXTI->IMR |= EXTI_IMR_MR1; //UNMASK EXTI1
+		EXTI->FTSR |= EXTI_FTSR_TR1; // trigger on falling edge
 
 		EXTI->IMR |= EXTI_IMR_MR4; //UNMASK EXTI4
 		EXTI->RTSR |= EXTI_RTSR_TR4; // trigger on rising edge
@@ -146,6 +175,7 @@ void init_GPIOA(void){ //used for outputs
 
 		//enable interrupt
 		NVIC_EnableIRQ(EXTI4_15_IRQn);
+		NVIC_EnableIRQ(EXTI0_1_IRQn);
 
 
 }
@@ -165,6 +195,14 @@ void init_GPIOB(void){// USED FOR OUTPUTS
 	GPIOB->MODER |= GPIO_MODER_MODER4_1;
 	GPIOB->MODER |= GPIO_MODER_MODER5_1;
 
+	//use PB2 and PB3 for LED outputs for displaying info
+	GPIOB->MODER |= GPIO_MODER_MODER2_0;
+	GPIOB->MODER |= GPIO_MODER_MODER3_0;
+	//set initial value off
+	GPIOB->ODR &= ~GPIO_ODR_0;
+	GPIOB->ODR &= ~GPIO_ODR_0;
+
+	//set pwm1 mode for af1
 	GPIOB->AFR[0] |= 0b0001; //
 	GPIOB->AFR[0] |= 0b0001 << (4*1);  //
 	GPIOB->AFR[0] |= 0b0001 << (4*4);
@@ -238,25 +276,26 @@ void turn(direction d){
 	switch(d){
 	case LEFT:
 		//left wheel
-		TIM1->CCR1 = 0;
-		TIM1->CCR2 = 40*speed;
+		TIM3->CCR1 = 0;
+		TIM3->CCR2 = 40*speed;
 		//right wheel
-		TIM1->CCR3 = 400*speed;
-		TIM1->CCR4 = 0;
+		TIM3->CCR3 = 40*speed;
+		TIM3->CCR4 = 0;
 		break;
 	case RIGHT:
 		//left wheel
-		TIM1->CCR1 = 40*speed;
-		TIM1->CCR2 = 0;
+		TIM3->CCR1 = 40*speed;
+		TIM3->CCR2 = 0;
 		//right wheel
-		TIM1->CCR3 = 0;
-		TIM1->CCR4 = 40*speed;
+		TIM3->CCR3 = 0;
+		TIM3->CCR4 = 40*speed;
 		break;
 	default: //indicate error
 		turnAround(4); //or flash leds maybe?
 	}
 
 	//delay for some time
+	delay(30);
 	brake();
 
 }
@@ -264,13 +303,14 @@ void turn(direction d){
 void turnAround(int k){
 	int speed = 10;
 	//left wheel
-	TIM1->CCR1 = 0;
-	TIM1->CCR2 = 100*speed;
+	TIM3->CCR1 = 0;
+	TIM3->CCR2 = 100*speed;
 	//right wheel
-	TIM1->CCR3 = 100*speed;
-	TIM1->CCR4 = 0;
+	TIM3->CCR3 = 100*speed;
+	TIM3->CCR4 = 0;
 
 	//delay for some time
+	delay(k);
 	brake();
 
 }
@@ -281,19 +321,19 @@ void slightTurn(direction d){
 		switch(d){
 		case LEFT:
 			//left wheel
-			TIM1->CCR1 = 60*forward_speed;
-			TIM1->CCR2 = 0;
+			TIM3->CCR1 = 15*forward_speed;
+			TIM3->CCR2 = 0;
 			//right wheel
-			TIM1->CCR3 = 80*forward_speed;
-			TIM1->CCR4 = 0;
+			TIM3->CCR3 = 30*forward_speed;
+			TIM3->CCR4 = 0;
 			break;
 		case RIGHT:
 			//left wheel
-			TIM1->CCR1 = 80*forward_speed;
-			TIM1->CCR2 = 0;
+			TIM3->CCR1 = 30*forward_speed;
+			TIM3->CCR2 = 0;
 			//right wheel
-			TIM1->CCR3 = 60*forward_speed;
-			TIM1->CCR4 = 0;
+			TIM3->CCR3 = 15*forward_speed;
+			TIM3->CCR4 = 0;
 			break;
 		default: //indicate error
 			turnAround(4); //or flash leds maybe? //should never actually occur
@@ -311,6 +351,14 @@ bool stateCompare(State state1, State state2){
 	if(state1.s5 != state2.s5) return false;
 
 	return true;
+}
+
+void delay(int s){
+	for(int i=0; i<s; i++){
+		for(int j=0; j<s; j++){
+			continue;
+		}
+	}
 }
 
 //========================
@@ -357,6 +405,10 @@ void EXTI4_15_IRQHandler(void){
 			else{
 				if(stateCompare(state, LEFT_CORNER)){
 					brake();
+					//find current coordinates by subtracting the previous
+
+
+					//insertLast();
 
 					EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
@@ -400,6 +452,7 @@ void EXTI4_15_IRQHandler(void){
 										if(stateCompare(state, FINISH)){
 											brake();
 
+
 											EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
 										}
@@ -423,11 +476,43 @@ void EXTI4_15_IRQHandler(void){
 	 * perhaps slow the robot down in this case?
 	 */
 
-	NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+	//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
 
 }
 
+void EXTI0_1_IRQHandler(void){
+	if(GPIOA->IDR & GPIO_IDR_0){
+		lcd_putstring("start btn");
+		if(!isStarted){
+			isStarted =1;
+			GPIOB->ODR |= GPIO_ODR_0; //set LED0 ON to indicate started
+		}
+		else{
+			isStarted =0;
+			GPIOB->ODR &= ~GPIO_ODR_0; //set LED0 OFF to indicate not started
+		}
+
+	}
+	else{
+		if(GPIOA->IDR & GPIO_IDR_1){
+			lcd_putstring("Mode changed");
+			if(MODE==MAPPING){
+				GPIOB->ODR |= GPIO_ODR_1; //set LED1 ON to indicate MAPPING MODE
+
+			}
+			else{
+				if(MODE==RACING){
+					GPIOB->ODR &= ~GPIO_ODR_1; //set LED1 ON to indicate MAPPING MODE
+
+				}
+
+			}
+		}
+
+	}
+
+}
 
 
 

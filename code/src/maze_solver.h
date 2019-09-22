@@ -22,7 +22,8 @@
 //========================
 typedef enum{
 	MAPPING,
-	RACING
+	RACING,
+	FINISHED
 
 }mode;
 
@@ -82,7 +83,7 @@ void brake(void);
 void slightTurn(direction d);
 
 bool stateCompare(State state1, State state2); //will return what state the
-
+void delay(int s);
 
 
 
