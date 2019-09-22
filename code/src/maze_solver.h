@@ -20,6 +20,12 @@
 //========================
 //DEFINE CONSTANTS and GLOBALS
 //========================
+typedef enum{
+	MAPPING,
+	RACING
+
+}mode;
+
 typedef enum {
 	LEFT, //0
 	RIGHT //1
@@ -33,19 +39,25 @@ typedef enum {
 } cardinal;
 
 typedef enum { //how many distinct paths from each type of junction need to be distinclty explored
-	LEFT_TURN = 1,
-	RIGHT_TURN = 1,
-	T_JUNCTION = 3,
-	FOUR_WAY = 4,
-	LEFT_BRANCH = 2,
-	RIGHT_BRANCH = 2
+	left_turn = 1,
+	right_turn = 1,
+	T_junction = 3,
+	four_way = 4,
+	left_branch = 2,
+	right_branch = 2
 
 }junction_type;
 
 extern struct Node* head;
 extern struct Node* tail;
 
-
+typedef struct{
+	int s1;
+	int s2;
+	int s3;
+	int s4;
+	int s5;
+}State;
 
 
 
@@ -66,7 +78,9 @@ void drive(int speed);
 void turn(direction d); //rotate 90* in the given direction
 void turnAround(int k); //rotate k*180 degrees
 void brake(void);
+void slightTurn(direction d);
 
+bool stateCompare(State state1, State state2); //will return what state the
 
 
 
