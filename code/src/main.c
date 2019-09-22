@@ -159,23 +159,23 @@ void init_PWM(void){
 //IMPLMENT FUNCTIONS
 //========================
 void brake(void){
-	TIM1->CCR1 = 100*100;
-	TIM1->CCR2 = 100*100;
-	TIM1->CCR3 = 100*100;
-	TIM1->CCR4 = 100*100;
+	TIM3->CCR1 = 100*100;
+	TIM3->CCR2 = 100*100;
+	TIM3->CCR3 = 100*100;
+	TIM3->CCR4 = 100*100;
 }
 
 void drive(int speed){ //speed ~ duty cycle between [0; 100]
 	//TODO figure out calibration
 
 	//left wheel
-	TIM1->CCR1 = 100*speed;
-	TIM1->CCR2 = 0;
+	TIM3->CCR1 = 100*speed;
+	TIM3->CCR2 = 0;
 
 
 	//right wheel
-	TIM1->CCR3 = 100*speed;
-	TIM1->CCR4 = 0;
+	TIM3->CCR3 = 100*speed;
+	TIM3->CCR4 = 0;
 
 }
 
@@ -187,25 +187,25 @@ void turn(direction d){
 	switch(d){
 	case LEFT:
 		//left wheel
-		TIM1->CCR1 = 0;
-		TIM1->CCR2 = 100*speed;
+		TIM3->CCR1 = 0;
+		TIM3->CCR2 = 100*speed;
 		//right wheel
-		TIM1->CCR3 = 100*speed;
-		TIM1->CCR4 = 0;
+		TIM3->CCR3 = 100*speed;
+		TIM3->CCR4 = 0;
 		break;
 	case RIGHT:
 		//left wheel
-		TIM1->CCR1 = 100*speed;
-		TIM1->CCR2 = 0;
+		TIM3->CCR1 = 100*speed;
+		TIM3->CCR2 = 0;
 		//right wheel
-		TIM1->CCR3 = 0;
-		TIM1->CCR4 = 100*speed;
+		TIM3->CCR3 = 0;
+		TIM3->CCR4 = 100*speed;
 		break;
 	default: //indicate error
 		turnAround(4); //or flash leds maybe?
 	}
 
-	sleep(2); //
+
 	brake();
 
 }
@@ -213,13 +213,13 @@ void turn(direction d){
 void turnAround(int k){
 	int speed = 10;
 	//left wheel
-	TIM1->CCR1 = 0;
-	TIM1->CCR2 = 100*speed;
+	TIM3->CCR1 = 0;
+	TIM3->CCR2 = 100*speed;
 	//right wheel
-	TIM1->CCR3 = 100*speed;
-	TIM1->CCR4 = 0;
+	TIM3->CCR3 = 100*speed;
+	TIM3->CCR4 = 0;
 
-	sleep(5*k); //turn for 5 seconds
+
 	brake();
 
 }
