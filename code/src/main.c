@@ -51,6 +51,7 @@ void main(void){
  //========================
 
 
+/* USE PA4-PA8 FOR SNESOR INPUTS AND INTERRUPTS*/
 void init_GPIOA(void){ //used for outputs
 	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
 
@@ -99,11 +100,10 @@ void init_GPIOA(void){ //used for outputs
 }
 
 
-/* USE LINES PB4 TO PB8 FOR SENSOR INPUTS
- * USE LINES PA8 TO PA11 FOR OUTPUTS TO MOTOR DRIVER
- *
+/* USE LINES PB0,1,4,5 ON TIM3_CH3,4,1,2 RESPECTIVELY FOR MOTOR PWM OUTPUTS
+ * AF1 ON PB IS MAPPED TO TIM3
  * */
-void init_GPIOB(void){// used for inputs
+void init_GPIOB(void){// USED FOR OUTPUTS
 
 	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
@@ -122,7 +122,7 @@ void init_GPIOB(void){// used for inputs
 
 }
 
-/* using TIM1 for PWM: use pa8 - pa11 for motor driver control lines
+/*USE TIM3 FOR PWM
  * */
 void init_PWM(void){
 	// TODO: choose frequency
