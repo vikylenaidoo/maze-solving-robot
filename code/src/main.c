@@ -19,15 +19,15 @@ struct Node* head;
 //MAIN IMPLEMENTATION
 //========================
 void main(void){
-	init_LCD();
-	lcd_command(CLEAR);
-	lcd_putstring("Start");
+	//init_LCD();
+	//lcd_command(CLEAR);
+	//lcd_putstring("Start");
 	//head =  (struct Node*) malloc(sizeof(struct Node));
 	init_GPIOA();
 	init_GPIOB();
 	init_PWM();
-	lcd_command(LINE_TWO);
-	lcd_putstring("initialisation");
+	//lcd_command(LINE_TWO);
+	//lcd_putstring("initialisation");
 	//printf("initialisation done \n");
 	while(true){
 
@@ -61,6 +61,8 @@ void init_GPIOA(void){ //used for outputs
 		GPIOA->MODER &= ~GPIO_MODER_MODER6;
 		GPIOA->MODER &= ~GPIO_MODER_MODER7;
 		GPIOA->MODER &= ~GPIO_MODER_MODER8;
+
+
 
 
 		//CONFIGURE INTERRUPTS
@@ -241,43 +243,43 @@ void EXTI4_15_IRQHandler(){
 		int s4 = (GPIOA->IDR & GPIO_IDR_7)>>7;
 		int s5 = (GPIOA->IDR & GPIO_IDR_8)>>8;
 
-		lcd_command(CLEAR);
-		lcd_putstring("interrupt");
+		//lcd_command(CLEAR);
+		/lcd_putstring("interrupt");
 		//printf("interrupt\n");
 		//GPIOA->ODR &= ~(GPIO_ODR_8|GPIO_ODR_9|GPIO_ODR_10|GPIO_ODR_11);//clear bits 8 to 11 for ODR
 
-		TIM3->CCR1 = 1 * 30;
-		TIM3->CCR2 = 1 * 30;
-		TIM3->CCR3 = 1 * 30;
-		TIM3->CCR4 = 1 * 30;
+		TIM3->CCR1 = 0;//1 * 30;
+		TIM3->CCR2 = 0;//1 * 30;
+		TIM3->CCR3 = 0;//1 * 30;
+		TIM3->CCR4 = 0;//1 * 30;
 		//GPIOA->ODR &= ~GPIO_ODR_0;
 
 
 		if(s1){
 			//printf("s1:%d \n", s1);
 			TIM3->CCR1 = 40 * 100;
-			lcd_command(LINE_TWO);
-			lcd_putstring("high");
+			//lcd_command(LINE_TWO);
+			//lcd_putstring("high");
 			//GPIOA->ODR |= GPIO_ODR_0;
 		}
 		if(s2){
 			TIM3->CCR2 = 40 * 100;
-			lcd_command(LINE_TWO);
-			lcd_putstring("high");
+			//lcd_command(LINE_TWO);
+			//lcd_putstring("high");
 			//printf("s2:%d \n", s2);
 			//GPIOA->ODR |= GPIO_ODR_0;
 		}
 		if(s3){
 			TIM3->CCR3 = 40 * 100;
-			lcd_command(LINE_TWO);
-			lcd_putstring("high");
+			//lcd_command(LINE_TWO);
+			//lcd_putstring("high");
 			//printf("s3:%d \n", s3);
 			//GPIOA->ODR |= GPIO_ODR_0;
 		}
 		if(s4){
 			TIM3->CCR4 = 40 * 100;
-			lcd_command(LINE_TWO);
-			lcd_putstring("high");
+			//lcd_command(LINE_TWO);
+			//lcd_putstring("high");
 			//printf("s4:%d \n", s4);
 			//GPIOA->ODR |= GPIO_ODR_0;
 		}
@@ -287,8 +289,8 @@ void EXTI4_15_IRQHandler(){
 			TIM3->CCR2 = 40 * 100;
 			TIM3->CCR3 = 40 * 100;
 			TIM3->CCR4 = 40 * 100;
-			lcd_command(LINE_TWO);
-			lcd_putstring("high s5");
+			//lcd_command(LINE_TWO);
+			//lcd_putstring("high s5");
 			//printf("s5:%d \n", s5);
 			//GPIOA->ODR |= GPIO_ODR_0;
 
