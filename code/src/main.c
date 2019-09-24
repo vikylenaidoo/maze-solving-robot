@@ -7,13 +7,42 @@
 
 #include "maze_solver.h"
 //#include <time.h>
-#include "Node.h"
+//#include "Node.h"
 
 //========================
 //DEFINE GLOBAL VARIABLES
 //========================
+#define forward_speed 100
+#define turn_speed 50
+#define turn_time 5
+#define rotate_time 5
 
-struct Node* head;
+
+mode MODE; //MAPPING or RACING or STANDBY or FINISHED
+bool isStarted;
+direction directions_taken[64];
+uint8_t counter;
+
+//used for decision making and node identification
+enum detect{
+		WHITE=0,
+		BLACK=1
+};
+
+
+State STRAIGHT 		= {WHITE, BLACK, WHITE, WHITE, WHITE};
+State T_JUNCTION 	= {BLACK, WHITE, BLACK, WHITE, WHITE};
+State FOUR_WAY 		= {BLACK, BLACK, BLACK, WHITE, WHITE};
+State LEFT_CORNER 	= {BLACK, WHITE, WHITE, WHITE, WHITE};
+State RIGHT_CORNER 	= {WHITE, WHITE, BLACK, WHITE, WHITE};
+State LEFT_BRANCH 	= {BLACK, BLACK, WHITE, WHITE, WHITE};
+State RIGHT_BRANCH 	= {WHITE, BLACK, BLACK, WHITE, WHITE};
+State DRIFT_LEFT 	= {WHITE, WHITE, WHITE, WHITE, BLACK};
+State DRIFT_RIGHT 	= {WHITE, WHITE, WHITE, BLACK, WHITE};
+State DEAD_END		= {WHITE, WHITE, WHITE, WHITE, WHITE};
+State FINISH 		= {BLACK, BLACK, BLACK, BLACK, BLACK};
+
+
 
 //========================
 //MAIN IMPLEMENTATION
@@ -31,8 +60,33 @@ void main(void){
 	//printf("initialisation done \n");
 	while(true){
 
+			while(isStarted){
 
-	}
+				if(MODE==MAPPING){
+					//set initial Mapping parameters
+					while(MODE==MAPPING){
+						drive(forward_speed);
+
+					}
+
+
+
+
+				}
+				else{
+					while(MODE==RACING){
+
+
+					}
+				}
+
+
+
+
+
+
+			}
+		}
 
 }
 
@@ -62,7 +116,10 @@ void init_GPIOA(void){ //used for outputs
 		GPIOA->MODER &= ~GPIO_MODER_MODER7;
 		GPIOA->MODER &= ~GPIO_MODER_MODER8;
 
-
+		GPIOA->MODER &= ~GPIO_MODER_MODER0; //use to set start
+		GPIOA->MODER &= ~GPIO_MODER_MODER1; // use to set mode
+		GPIOA->PUPDR |= GPIO_PUPDR_PUPDR0_0;
+		GPIOA->PUPDR |= GPIO_PUPDR_PUPDR1_0;
 
 
 		//CONFIGURE INTERRUPTS
@@ -74,6 +131,15 @@ void init_GPIOA(void){ //used for outputs
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI7_PA;
 		SYSCFG->EXTICR[3] |= SYSCFG_EXTICR3_EXTI8_PA;
 
+		//for button inputs
+		SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA;
+		SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI1_PA;
+
+		EXTI->IMR |= EXTI_IMR_MR0; //UNMASK EXTI0
+		EXTI->FTSR |= EXTI_FTSR_TR0; // trigger on falling edge
+
+		EXTI->IMR |= EXTI_IMR_MR1; //UNMASK EXTI1
+		EXTI->FTSR |= EXTI_FTSR_TR1; // trigger on falling edge
 
 		EXTI->IMR |= EXTI_IMR_MR4; //UNMASK EXTI4
 		EXTI->RTSR |= EXTI_RTSR_TR4; // trigger on rising edge
@@ -116,10 +182,18 @@ void init_GPIOB(void){// USED FOR OUTPUTS
 	GPIOB->MODER |= GPIO_MODER_MODER4_1;
 	GPIOB->MODER |= GPIO_MODER_MODER5_1;
 
+	//use for LED outputs
+	GPIOB->MODER |= GPIO_MODER_MODER6_0;
+	GPIOB->MODER |= GPIO_MODER_MODER7_0;
+	GPIOB->MODER |= GPIO_MODER_MODER8_0;
+
+
 	GPIOB->AFR[0] |= 0b0001; //
 	GPIOB->AFR[0] |= 0b0001 << (4*1);  //
 	GPIOB->AFR[0] |= 0b0001 << (4*4);
 	GPIOB->AFR[0] |= 0b0001 << (4*5);
+
+	GPIOB->ODR |= GPIO_ODR_6| GPIO_ODR_7|GPIO_ODR_8;
 
 
 }
@@ -181,38 +255,43 @@ void drive(int speed){ //speed ~ duty cycle between [0; 100]
 
 }
 
+/*can only turn left or right*/
 void turn(direction d){
 	//TODO decide what optimum turning speed
-	brake();
-	int speed = 10;
+	//brake();
 
 	switch(d){
 	case LEFT:
 		//left wheel
 		TIM3->CCR1 = 0;
-		TIM3->CCR2 = 100*speed;
+		TIM3->CCR2 = 40*turn_speed;
 		//right wheel
-		TIM3->CCR3 = 100*speed;
+		TIM3->CCR3 = 40*turn_speed;
 		TIM3->CCR4 = 0;
 		break;
 	case RIGHT:
 		//left wheel
-		TIM3->CCR1 = 100*speed;
+		TIM3->CCR1 = 40*turn_speed;
 		TIM3->CCR2 = 0;
 		//right wheel
 		TIM3->CCR3 = 0;
-		TIM3->CCR4 = 100*speed;
+		TIM3->CCR4 = 40*turn_speed;
+		break;
+	case FORWARD:
+		drive(forward_speed);
 		break;
 	default: //indicate error
-		turnAround(4); //or flash leds maybe?
+		drive(forward_speed);
+		break;
 	}
 
-
+	//delay for some time
+	delay(turn_time);
 	brake();
 
 }
 
-void turnAround(int k){
+void turnAround(){
 	int speed = 10;
 	//left wheel
 	TIM3->CCR1 = 0;
@@ -221,89 +300,236 @@ void turnAround(int k){
 	TIM3->CCR3 = 100*speed;
 	TIM3->CCR4 = 0;
 
-
+	delay(rotate_time);
 	brake();
 
 }
 
+/*turn slightly while still going forward*/
+void slightTurn(direction d){
+
+		switch(d){
+		case LEFT:
+			//left wheel
+			TIM3->CCR1 = 15*forward_speed;
+			TIM3->CCR2 = 0;
+			//right wheel
+			TIM3->CCR3 = 30*forward_speed;
+			TIM3->CCR4 = 0;
+			break;
+		case RIGHT:
+			//left wheel
+			TIM3->CCR1 = 30*forward_speed;
+			TIM3->CCR2 = 0;
+			//right wheel
+			TIM3->CCR3 = 15*forward_speed;
+			TIM3->CCR4 = 0;
+			break;
+		default: //indicate error
+			turnAround(4); //or flash leds maybe? //should never actually occur
+		}
+
+}
+
+/*check wheteher the combination of states are corresponding to the given state*/
+bool stateCompare(State state1, State state2){
+
+	if(state1.s1 != state2.s1) return false;
+	if(state1.s2 != state2.s2) return false;
+	if(state1.s3 != state2.s3) return false;
+	if(state1.s4 != state2.s4) return false;
+	if(state1.s5 != state2.s5) return false;
+
+	return true;
+}
+
+
+void delay(int s){
+	for(int i=0; i<s; i++){
+		for(int j=0; j<s; j++){
+			continue;
+		}
+	}
+}
 //========================
 //INTEERRUPT HANDLERS8
 //========================
 
 /*controls lines 4 to 15: mapped to inputs from sensors (PB4-PB8)*/
-void EXTI4_15_IRQHandler(){
-	//TODO: confirm sensor topological config. Does the tail swing alot?
+void EXTI4_15_IRQHandler(void){
+	/*TODO:
+	 * confirm sensor topological config. Does the tail swing alot?
+	 * update cardinal direction for each case
+	 * keep which cardinals still need to be explored as opposed to directions (directions are relative whilst cardinals are absolute)
+	 */
 
 	// 1st interrupt will trigger and disable other interruots until the PR flag is reset;
 
-		//lines pa4 to pa8 used for sensor inputs
-		int s1 = (GPIOA->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
-		int s2 = (GPIOA->IDR & GPIO_IDR_5)>>5;
-		int s3 = (GPIOA->IDR & GPIO_IDR_6)>>6;
-		int s4 = (GPIOA->IDR & GPIO_IDR_7)>>7;
-		int s5 = (GPIOA->IDR & GPIO_IDR_8)>>8;
+	//lines pb4 to pb8 used for sensor inputs
+	int s1 = (GPIOA->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
+	int s2 = (GPIOA->IDR & GPIO_IDR_5)>>5;
+	int s3 = (GPIOA->IDR & GPIO_IDR_6)>>6;
+	int s4 = (GPIOA->IDR & GPIO_IDR_7)>>7;
+	int s5 = (GPIOA->IDR & GPIO_IDR_8)>>8;
 
-		//lcd_command(CLEAR);
-		/lcd_putstring("interrupt");
-		//printf("interrupt\n");
-		//GPIOA->ODR &= ~(GPIO_ODR_8|GPIO_ODR_9|GPIO_ODR_10|GPIO_ODR_11);//clear bits 8 to 11 for ODR
+	State state = {s1, s2, s3, s4, s5};
 
-		TIM3->CCR1 = 0;//1 * 30;
-		TIM3->CCR2 = 0;//1 * 30;
-		TIM3->CCR3 = 0;//1 * 30;
-		TIM3->CCR4 = 0;//1 * 30;
-		//GPIOA->ODR &= ~GPIO_ODR_0;
+	if(stateCompare(state, STRAIGHT)){
+		drive(forward_speed);
+		//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+		NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+	}
+	else{
+		if(stateCompare(state, DRIFT_LEFT)){
+			slightTurn(RIGHT);
 
-
-		if(s1){
-			//printf("s1:%d \n", s1);
-			TIM3->CCR1 = 40 * 100;
-			//lcd_command(LINE_TWO);
-			//lcd_putstring("high");
-			//GPIOA->ODR |= GPIO_ODR_0;
-		}
-		if(s2){
-			TIM3->CCR2 = 40 * 100;
-			//lcd_command(LINE_TWO);
-			//lcd_putstring("high");
-			//printf("s2:%d \n", s2);
-			//GPIOA->ODR |= GPIO_ODR_0;
-		}
-		if(s3){
-			TIM3->CCR3 = 40 * 100;
-			//lcd_command(LINE_TWO);
-			//lcd_putstring("high");
-			//printf("s3:%d \n", s3);
-			//GPIOA->ODR |= GPIO_ODR_0;
-		}
-		if(s4){
-			TIM3->CCR4 = 40 * 100;
-			//lcd_command(LINE_TWO);
-			//lcd_putstring("high");
-			//printf("s4:%d \n", s4);
-			//GPIOA->ODR |= GPIO_ODR_0;
-		}
-		if(s5){
-			//GPIOA->ODR = GPIO_ODR_8|GPIO_ODR_9|GPIO_ODR_10|GPIO_ODR_11;
-			TIM3->CCR1 = 40 * 100;
-			TIM3->CCR2 = 40 * 100;
-			TIM3->CCR3 = 40 * 100;
-			TIM3->CCR4 = 40 * 100;
-			//lcd_command(LINE_TWO);
-			//lcd_putstring("high s5");
-			//printf("s5:%d \n", s5);
-			//GPIOA->ODR |= GPIO_ODR_0;
+			//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+			NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
 		}
+		else{
+			if(stateCompare(state, DRIFT_RIGHT)){
+				slightTurn(LEFT);
 
-		//int irq = NVIC_GetPendingIRQ(EXTI4_15_IRQn);
-		//printf("irq: %d\n", irq);
-		EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
-		//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+				//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+				NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+
+			}
+			else{
+				if(stateCompare(state, LEFT_CORNER)){
+					brake();
+					turn(LEFT);
+					drive(forward_speed);
+
+					NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+					//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+				}
+				else{
+					if(stateCompare(state, RIGHT_CORNER)){
+						brake();
+						turn(RIGHT);
+						drive(forward_speed);
+
+						NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+						//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+					}
+					else{
+						if(stateCompare(state, LEFT_BRANCH)){
+							brake();
+							turn(LEFT);
+							drive(forward_speed);
+
+							NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+							//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+						}
+						else{
+							if(stateCompare(state, RIGHT_BRANCH)){
+								brake();
+								turn(FORWARD);
+
+								NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+								//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+							}
+							else{
+								if(stateCompare(state, T_JUNCTION)){
+									brake();
+									turn(LEFT);
+									drive(forward_speed);
+
+									NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+									//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+								}
+								else{
+									if(stateCompare(state, FOUR_WAY)){
+										brake();
+										turn(LEFT);
+										drive(forward_speed);
+
+										NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+										//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+									}
+									else{
+										if(stateCompare(state, FINISH)){
+											brake();
+											MODE = STANDBY;
+											//call optimisation
+
+											NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+											//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+										}
+										else{ //none of these states detected
+											if(stateCompare(state, DEAD_END)){
+												brake();
+												turnAround();
+												NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+
+											}
+											else{
+
+												drive(forward_speed);
+												NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/*if none of these states are occuring then its a false trigger
+	 * perhaps slow the robot down in this case?
+	 */
+
+	NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+
+
 }
 
+void EXTI0_1_IRQHandler(void){
+	GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
+	if(GPIOA->IDR & GPIO_IDR_0){
+		//lcd_putstring("start btn");
+		if(!isStarted){
+			isStarted =1;
+			GPIOB->ODR |= GPIO_ODR_6; //set LED0 ON to indicate started
+		}
+		else{
+			isStarted =0;
+			GPIOB->ODR &= ~GPIO_ODR_6; //set LED0 OFF to indicate not started
+		}
 
+	}
+	else{
+		if(GPIOA->IDR & GPIO_IDR_1){
+			//lcd_putstring("Mode changed");
+			if(MODE==MAPPING){
+				GPIOB->ODR |= GPIO_ODR_7; //set LED1 ON to indicate RACING MODE
+				MODE = RACING;
+			}
+			else{
+				if(MODE==RACING){
+					GPIOB->ODR &= ~GPIO_ODR_7;
+					MODE = STANDBY;
+				}
+			}
+		}
 
+	}
+
+	NVIC_ClearPendingIRQ(EXTI0_1_IRQn);
+
+}
 
 
 

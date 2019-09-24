@@ -16,13 +16,15 @@
 #include <unistd.h>
 
 #include "stm32f0xx.h"
-#include "lcd_stm32f0.h"
+
 //========================
 //DEFINE CONSTANTS and GLOBALS
 //========================
 typedef enum {
 	LEFT, //0
-	RIGHT //1
+	FORWARD,
+	RIGHT,
+	BACK
 } direction;
 
 typedef enum {
@@ -32,7 +34,7 @@ typedef enum {
 	SOUTH	//3
 } cardinal;
 
-typedef enum { //how many distinct paths from each type of junction need to be distinclty explored
+/*typedef enum { //how many distinct paths from each type of junction need to be distinclty explored
 	LEFT_TURN = 1,
 	RIGHT_TURN = 1,
 	T_JUNCTION = 3,
@@ -41,9 +43,23 @@ typedef enum { //how many distinct paths from each type of junction need to be d
 	RIGHT_BRANCH = 2
 
 }junction_type;
+*/
 
-extern struct Node* head;
-extern struct Node* tail;
+typedef enum{
+	MAPPING,
+	RACING,
+	STANDBY,
+	FINISHED
+
+}mode;
+
+typedef struct{
+	uint8_t s1;
+	uint8_t s2;
+	uint8_t s3;
+	uint8_t s4;
+	uint8_t s5;
+}State;
 
 
 
@@ -64,8 +80,10 @@ void init_PWM(void);
 
 void drive(int speed);
 void turn(direction d); //rotate 90* in the given direction
-void turnAround(int k); //rotate k*180 degrees
+void turnAround(); //rotate k*180 degrees
 void brake(void);
+
+void delay(int s);
 
 
 
