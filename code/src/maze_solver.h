@@ -23,13 +23,15 @@
 typedef enum{
 	MAPPING,
 	RACING,
+	STANDBY,
 	FINISHED
 
 }mode;
 
 typedef enum {
-	LEFT, //0
-	RIGHT //1
+	LEFT,
+	FORWARD,
+	RIGHT
 } direction;
 
 typedef enum {
@@ -45,7 +47,8 @@ typedef enum { //how many distinct paths from each type of junction need to be d
 	T_junction = 3,
 	four_way = 4,
 	left_branch = 2,
-	right_branch = 2
+	right_branch = 2,
+	start =0
 
 }junction_type;
 
@@ -63,7 +66,7 @@ typedef struct{
 
 extern struct Node* head;
 extern struct Node* tail;
-
+extern int total_nodes;
 
 
 
@@ -75,6 +78,7 @@ extern struct Node* tail;
 void init_GPIOA(void); // for inputs
 void init_GPIOB(void); // for outputs
 void init_PWM(void);
+void init_TIM2(void);
 
 void drive(int speed);
 void turn(direction d); //rotate 90* in the given direction
@@ -82,8 +86,14 @@ void turnAround(int k); //rotate k*180 degrees
 void brake(void);
 void slightTurn(direction d);
 
+void updateCardinal(direction d);
+void updateCurrentCoordinates(void);
+direction cardinalToDirection(cardinal desired_cardinal);
+cardinal directionToCardinal(direction desired_direction);
+cardinal invertOrientation(void);
+
 bool stateCompare(State state1, State state2); //will return what state the
-void delay(int s);
+void wait(int s);
 
 
 
