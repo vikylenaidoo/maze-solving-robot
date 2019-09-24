@@ -64,6 +64,10 @@ void main(void){
 
 				if(MODE==MAPPING){
 					//set initial Mapping parameters
+					counter = 0;
+					directions_taken[counter] = FORWARD;
+					counter++;
+
 					while(MODE==MAPPING){
 						drive(forward_speed);
 
@@ -259,6 +263,8 @@ void drive(int speed){ //speed ~ duty cycle between [0; 100]
 void turn(direction d){
 	//TODO decide what optimum turning speed
 	//brake();
+	directions_taken[counter] = d;
+	counter++;
 
 	switch(d){
 	case LEFT:
@@ -292,6 +298,10 @@ void turn(direction d){
 }
 
 void turnAround(){
+
+	directions_taken[counter] = BACK;
+	counter++;
+
 	int speed = 10;
 	//left wheel
 	TIM3->CCR1 = 0;
