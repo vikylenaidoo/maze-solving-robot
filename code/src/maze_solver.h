@@ -24,7 +24,7 @@ typedef enum {
 	LEFT, //0
 	FORWARD,
 	RIGHT,
-	BACK
+	BACKWARDS
 } direction;
 
 typedef enum {

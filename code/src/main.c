@@ -263,8 +263,8 @@ void drive(int speed){ //speed ~ duty cycle between [0; 100]
 void turn(direction d){
 	//TODO decide what optimum turning speed
 	//brake();
-	directions_taken[counter] = d;
-	counter++;
+	//directions_taken[counter] = d;
+	//counter++;
 
 	switch(d){
 	case LEFT:
@@ -299,8 +299,8 @@ void turn(direction d){
 
 void turnAround(){
 
-	directions_taken[counter] = BACK;
-	counter++;
+//	directions_taken[counter] = BACKWARDS;
+	//counter++;
 
 	int speed = 10;
 	//left wheel
@@ -408,9 +408,13 @@ void EXTI4_15_IRQHandler(void){
 			else{
 				if(stateCompare(state, LEFT_CORNER)){
 					brake();
-					turn(LEFT);
-					drive(forward_speed);
 
+					if(MODE==MAPPING){
+						turn(LEFT);
+						directions_taken[counter] = LEFT;
+						counter++;
+						drive(forward_speed);
+					}
 					NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 					//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
@@ -418,28 +422,37 @@ void EXTI4_15_IRQHandler(void){
 				else{
 					if(stateCompare(state, RIGHT_CORNER)){
 						brake();
-						turn(RIGHT);
-						drive(forward_speed);
-
+						if(MODE==MAPPING){
+							turn(RIGHT);
+							directions_taken[counter] = RIGHT;
+							counter++;
+							drive(forward_speed);
+						}
 						NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 						//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
 					}
 					else{
 						if(stateCompare(state, LEFT_BRANCH)){
-							brake();
-							turn(LEFT);
-							drive(forward_speed);
-
+							if(MODE==MAPPING){
+								brake();
+								turn(LEFT);
+								directions_taken[counter] = LEFT;
+								counter++;
+								drive(forward_speed);
+							}
 							NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 							//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
 						}
 						else{
 							if(stateCompare(state, RIGHT_BRANCH)){
-								brake();
-								turn(FORWARD);
-
+								if(MODE==MAPPING){
+									brake();
+									directions_taken[counter] = FORWARD;
+									counter++;
+									turn(FORWARD);
+								}
 								NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 								//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
@@ -447,19 +460,25 @@ void EXTI4_15_IRQHandler(void){
 							else{
 								if(stateCompare(state, T_JUNCTION)){
 									brake();
-									turn(LEFT);
-									drive(forward_speed);
-
+									if(MODE==MAPPING){
+										turn(LEFT);
+										directions_taken[counter] = LEFT;
+										counter++;
+										drive(forward_speed);
+									}
 									NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 									//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
 								}
 								else{
 									if(stateCompare(state, FOUR_WAY)){
-										brake();
-										turn(LEFT);
-										drive(forward_speed);
-
+										if(MODE==MAPPING){
+											brake();
+											turn(LEFT);
+											directions_taken[counter] = LEFT;
+											counter++;
+											drive(forward_speed);
+										}
 										NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 										//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
@@ -467,9 +486,11 @@ void EXTI4_15_IRQHandler(void){
 									else{
 										if(stateCompare(state, FINISH)){
 											brake();
-											MODE = STANDBY;
-											//call optimisation
+											if(MODE==MAPPING){
+												MODE = STANDBY;
+												//call optimisation
 
+											}
 											NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 											//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
@@ -477,7 +498,12 @@ void EXTI4_15_IRQHandler(void){
 										else{ //none of these states detected
 											if(stateCompare(state, DEAD_END)){
 												brake();
-												turnAround();
+												if(MODE==MAPPING){
+													turnAround();
+													directions_taken[counter] = BACKWARDS;
+													counter++;
+
+												}
 												NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
 											}
