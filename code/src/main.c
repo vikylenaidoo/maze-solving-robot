@@ -368,6 +368,18 @@ void optimise(){
 
 
 }
+
+/*
+State determineState(void){
+	int s1 = (GPIOA->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
+	int s2 = (GPIOA->IDR & GPIO_IDR_5)>>5;
+	int s3 = (GPIOA->IDR & GPIO_IDR_6)>>6;
+	int s4 = (GPIOA->IDR & GPIO_IDR_7)>>7;
+	int s5 = (GPIOA->IDR & GPIO_IDR_8)>>8;
+
+	State state = {s1, s2, s3, s4, s5};
+	return state;
+}*/
 //========================
 //INTEERRUPT HANDLERS8
 //========================
@@ -383,6 +395,7 @@ void EXTI4_15_IRQHandler(void){
 	// 1st interrupt will trigger and disable other interruots until the PR flag is reset;
 
 	//lines pb4 to pb8 used for sensor inputs
+
 	int s1 = (GPIOA->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
 	int s2 = (GPIOA->IDR & GPIO_IDR_5)>>5;
 	int s3 = (GPIOA->IDR & GPIO_IDR_6)>>6;
@@ -390,6 +403,11 @@ void EXTI4_15_IRQHandler(void){
 	int s5 = (GPIOA->IDR & GPIO_IDR_8)>>8;
 
 	State state = {s1, s2, s3, s4, s5};
+
+
+//	delay(2);// wait a bit before checking state
+
+//	State state = determineState();
 
 	if(stateCompare(state, STRAIGHT)){
 		drive(forward_speed);
@@ -413,6 +431,8 @@ void EXTI4_15_IRQHandler(void){
 
 			}
 			else{
+
+				delay(2);
 				if(stateCompare(state, LEFT_CORNER)){
 					brake();
 
