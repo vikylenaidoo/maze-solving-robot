@@ -21,6 +21,7 @@
 mode MODE; //MAPPING or RACING or STANDBY or FINISHED
 bool isStarted;
 direction directions_taken[64];
+direction optimal_path[64] = {STOP};
 uint8_t counter;
 
 //used for decision making and node identification
@@ -209,6 +210,7 @@ void init_PWM(void){
 
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 	TIM3->PSC = 23;
+
 	TIM3->ARR = 3999;	// PWM freqeuncy = 500Hz
 
 
@@ -360,6 +362,11 @@ void delay(int s){
 			continue;
 		}
 	}
+}
+
+void optimise(){
+
+
 }
 //========================
 //INTEERRUPT HANDLERS8
