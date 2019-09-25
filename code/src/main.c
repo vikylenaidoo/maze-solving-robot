@@ -23,6 +23,7 @@ bool isStarted;
 direction directions_taken[64];
 direction optimal_path[64] = {STOP};
 uint8_t counter;
+bool flag;
 
 //used for decision making and node identification
 enum detect{
@@ -38,8 +39,8 @@ State LEFT_CORNER 	= {BLACK, WHITE, WHITE, WHITE, WHITE};
 State RIGHT_CORNER 	= {WHITE, WHITE, BLACK, WHITE, WHITE};
 State LEFT_BRANCH 	= {BLACK, BLACK, WHITE, WHITE, WHITE};
 State RIGHT_BRANCH 	= {WHITE, BLACK, BLACK, WHITE, WHITE};
-State DRIFT_LEFT 	= {WHITE, WHITE, WHITE, WHITE, BLACK};
-State DRIFT_RIGHT 	= {WHITE, WHITE, WHITE, BLACK, WHITE};
+State DRIFT_LEFT 	= {BLACK, WHITE, WHITE, WHITE, BLACK};
+State DRIFT_RIGHT 	= {BLACK, WHITE, WHITE, BLACK, WHITE};
 State DEAD_END		= {WHITE, WHITE, WHITE, WHITE, WHITE};
 State FINISH 		= {BLACK, BLACK, BLACK, BLACK, BLACK};
 
@@ -59,6 +60,8 @@ void main(void){
 	//lcd_command(LINE_TWO);
 	//lcd_putstring("initialisation");
 	//printf("initialisation done \n");
+	isStarted = 0;
+	flag =0;
 	while(true){
 
 			while(isStarted){
@@ -134,7 +137,7 @@ void init_GPIOA(void){ //used for outputs
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI5_PA; //map pa5 to exti5
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI6_PA;
 		SYSCFG->EXTICR[1] |= SYSCFG_EXTICR2_EXTI7_PA;
-		SYSCFG->EXTICR[3] |= SYSCFG_EXTICR3_EXTI8_PA;
+		SYSCFG->EXTICR[2] |= SYSCFG_EXTICR3_EXTI8_PA;
 
 		//for button inputs
 		SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI0_PA;
@@ -168,6 +171,7 @@ void init_GPIOA(void){ //used for outputs
 
 		//enable interrupt
 		NVIC_EnableIRQ(EXTI4_15_IRQn);
+		NVIC_EnableIRQ(EXTI0_1_IRQn);
 
 
 }
@@ -190,7 +194,7 @@ void init_GPIOB(void){// USED FOR OUTPUTS
 	//use for LED outputs
 	GPIOB->MODER |= GPIO_MODER_MODER6_0;
 	GPIOB->MODER |= GPIO_MODER_MODER7_0;
-	GPIOB->MODER |= GPIO_MODER_MODER8_0;
+	GPIOB->MODER |= GPIO_MODER_MODER2_0;
 
 
 	GPIOB->AFR[0] |= 0b0001; //
@@ -198,7 +202,7 @@ void init_GPIOB(void){// USED FOR OUTPUTS
 	GPIOB->AFR[0] |= 0b0001 << (4*4);
 	GPIOB->AFR[0] |= 0b0001 << (4*5);
 
-	GPIOB->ODR |= GPIO_ODR_6| GPIO_ODR_7|GPIO_ODR_8;
+	GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_2);
 
 
 }
@@ -251,12 +255,12 @@ void drive(int speed){ //speed ~ duty cycle between [0; 100]
 	//TODO figure out calibration
 
 	//left wheel
-	TIM3->CCR1 = 100*speed;
+	TIM3->CCR1 = (int)(40*speed);
 	TIM3->CCR2 = 0;
 
 
 	//right wheel
-	TIM3->CCR3 = 100*speed;
+	TIM3->CCR3 = (int)(40*speed*0.9);
 	TIM3->CCR4 = 0;
 
 }
@@ -391,6 +395,8 @@ void EXTI4_15_IRQHandler(void){
 	 * update cardinal direction for each case
 	 * keep which cardinals still need to be explored as opposed to directions (directions are relative whilst cardinals are absolute)
 	 */
+	//EXTI->IMR &= ~EXTI_IMR_MR4 & ~EXTI_IMR_MR5 & ~EXTI_IMR_MR6 & ~EXTI_IMR_MR7 & ~EXTI_IMR_MR8;
+
 
 	// 1st interrupt will trigger and disable other interruots until the PR flag is reset;
 
@@ -404,37 +410,56 @@ void EXTI4_15_IRQHandler(void){
 
 	State state = {s1, s2, s3, s4, s5};
 
+	/*if(!isStarted){
+		//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+		EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
+		return;
+
+	}*/
 
 //	delay(2);// wait a bit before checking state
 
 //	State state = determineState();
+	GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8);
 
 	if(stateCompare(state, STRAIGHT)){
 		drive(forward_speed);
-		//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
-		NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+		GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8);
+
+		EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
+		//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 	}
 	else{
 		if(stateCompare(state, DRIFT_LEFT)){
-			slightTurn(RIGHT);
 
-			//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
-			NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+			delay(200);
+			slightTurn(RIGHT);
+			GPIOB->ODR |= (GPIO_ODR_6);
+
+			EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
+			//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
 		}
 		else{
 			if(stateCompare(state, DRIFT_RIGHT)){
-				slightTurn(LEFT);
 
-				//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
-				NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+				delay(200);
+				slightTurn(LEFT);
+				GPIOB->ODR |= (GPIO_ODR_6);
+
+				EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
+				//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
 			}
 			else{
 
-				delay(2);
+				delay(200);
+
+
 				if(stateCompare(state, LEFT_CORNER)){
 					brake();
+
+
 
 					if(MODE==MAPPING){
 						turn(LEFT);
@@ -442,8 +467,10 @@ void EXTI4_15_IRQHandler(void){
 						counter++;
 						drive(forward_speed);
 					}
-					NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
-					//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+
+
+					//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+					EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
 
 				}
 				else{
@@ -455,12 +482,13 @@ void EXTI4_15_IRQHandler(void){
 							counter++;
 							drive(forward_speed);
 						}
-						NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
-						//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+						//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+						EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
 
 					}
 					else{
 						if(stateCompare(state, LEFT_BRANCH)){
+
 							if(MODE==MAPPING){
 								brake();
 								turn(LEFT);
@@ -468,24 +496,29 @@ void EXTI4_15_IRQHandler(void){
 								counter++;
 								drive(forward_speed);
 							}
-							NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+							//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+							EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
 							//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
 						}
 						else{
 							if(stateCompare(state, RIGHT_BRANCH)){
+
 								if(MODE==MAPPING){
 									brake();
 									directions_taken[counter] = FORWARD;
 									counter++;
 									turn(FORWARD);
 								}
-								NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
-								//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+								//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
+								EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
 							}
 							else{
 								if(stateCompare(state, T_JUNCTION)){
+
+									delay(200);
+
 									brake();
 									if(MODE==MAPPING){
 										turn(LEFT);
@@ -493,12 +526,13 @@ void EXTI4_15_IRQHandler(void){
 										counter++;
 										drive(forward_speed);
 									}
-									NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
-									//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+									//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+									EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
 
 								}
 								else{
 									if(stateCompare(state, FOUR_WAY)){
+
 										if(MODE==MAPPING){
 											brake();
 											turn(LEFT);
@@ -506,24 +540,26 @@ void EXTI4_15_IRQHandler(void){
 											counter++;
 											drive(forward_speed);
 										}
-										NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
-										//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+										//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+										EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
 
 									}
 									else{
 										if(stateCompare(state, FINISH)){
+
 											brake();
 											if(MODE==MAPPING){
 												MODE = STANDBY;
 												//call optimisation
 
 											}
-											NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
-											//EXTI->PR |= EXTI_PR_PR0; //clear the interrupt
+											//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+											EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
 
 										}
 										else{ //none of these states detected
 											if(stateCompare(state, DEAD_END)){
+
 												brake();
 												if(MODE==MAPPING){
 													turnAround();
@@ -531,13 +567,14 @@ void EXTI4_15_IRQHandler(void){
 													counter++;
 
 												}
-												NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
-
+												//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+												EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
 											}
 											else{
 
 												drive(forward_speed);
-												NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+												//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+												EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
 											}
 										}
 									}
@@ -554,26 +591,46 @@ void EXTI4_15_IRQHandler(void){
 	 * perhaps slow the robot down in this case?
 	 */
 
-	NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+	//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
+
+	EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
+	//EXTI->IMR |= EXTI_IMR_MR4 | EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 | EXTI_IMR_MR8;
 
 
 }
 
 void EXTI0_1_IRQHandler(void){
-	GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
-	if(GPIOA->IDR & GPIO_IDR_0){
-		//lcd_putstring("start btn");
-		if(!isStarted){
-			isStarted =1;
-			GPIOB->ODR |= GPIO_ODR_6; //set LED0 ON to indicate started
-		}
-		else{
-			isStarted =0;
-			GPIOB->ODR &= ~GPIO_ODR_6; //set LED0 OFF to indicate not started
-		}
 
+	//EXTI->IMR &= ~EXTI_IMR_MR0;
+	//EXTI->IMR &= ~EXTI_IMR_MR1;
+
+	//GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
+
+	/*if(flag) {
+		GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
+		flag = !flag;
 	}
 	else{
+		GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
+		flag = !flag;
+	}*/
+	if(GPIOA->IDR & GPIO_IDR_0){
+		//GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
+		//lcd_putstring("start btn");
+		if(!isStarted ){
+			isStarted =1;
+			//GPIOB->ODR |= GPIO_ODR_6; //set LED0 ON to indicate started
+			GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
+			delay(500);
+			GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
+		}
+		/*else{
+			isStarted =0;
+			GPIOB->ODR &= ~GPIO_ODR_6; //set LED0 OFF to indicate not started
+		}*/
+
+	}
+	/*else{
 		if(GPIOA->IDR & GPIO_IDR_1){
 			//lcd_putstring("Mode changed");
 			if(MODE==MAPPING){
@@ -588,9 +645,12 @@ void EXTI0_1_IRQHandler(void){
 			}
 		}
 
-	}
+	}*/
 
-	NVIC_ClearPendingIRQ(EXTI0_1_IRQn);
+	//NVIC_ClearPendingIRQ(EXTI0_1_IRQn);
+	//EXTI->IMR |= EXTI_IMR_MR0;
+	//EXTI->IMR |= EXTI_IMR_MR0;
+	EXTI->PR |= EXTI_PR_PR0 | EXTI_PR_PR1;
 
 }
 
