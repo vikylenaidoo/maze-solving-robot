@@ -17,6 +17,7 @@
 #define turn_time 5
 #define rotate_time 5
 
+State state = {0,0,0,0,0};
 
 mode MODE; //MAPPING or RACING or STANDBY or FINISHED
 bool isStarted;
@@ -27,20 +28,24 @@ bool flag;
 
 //used for decision making and node identification
 enum detect{
-		WHITE=0,
-		BLACK=1
+		WHITE=1,
+		BLACK=0
 };
 
 
 State STRAIGHT 		= {WHITE, BLACK, WHITE, WHITE, WHITE};
+
 State T_JUNCTION 	= {BLACK, WHITE, BLACK, WHITE, WHITE};
+State t_junction 	= {BLACK, WHITE, BLACK, BLACK, WHITE};
+State TJUNCTION 	= {BLACK, WHITE, BLACK, WHITE, BLACK};
+
 State FOUR_WAY 		= {BLACK, BLACK, BLACK, WHITE, WHITE};
 State LEFT_CORNER 	= {BLACK, WHITE, WHITE, WHITE, WHITE};
 State RIGHT_CORNER 	= {WHITE, WHITE, BLACK, WHITE, WHITE};
 State LEFT_BRANCH 	= {BLACK, BLACK, WHITE, WHITE, WHITE};
 State RIGHT_BRANCH 	= {WHITE, BLACK, BLACK, WHITE, WHITE};
-State DRIFT_LEFT 	= {BLACK, WHITE, WHITE, WHITE, BLACK};
-State DRIFT_RIGHT 	= {BLACK, WHITE, WHITE, BLACK, WHITE};
+State DRIFT_LEFT 	= {WHITE, WHITE, WHITE, WHITE, BLACK};
+State DRIFT_RIGHT 	= {WHITE, WHITE, WHITE, BLACK, WHITE};
 State DEAD_END		= {WHITE, WHITE, WHITE, WHITE, WHITE};
 State FINISH 		= {BLACK, BLACK, BLACK, BLACK, BLACK};
 
@@ -60,7 +65,7 @@ void main(void){
 	//lcd_command(LINE_TWO);
 	//lcd_putstring("initialisation");
 	//printf("initialisation done \n");
-	isStarted = 0;
+	isStarted = 1;
 	flag =0;
 	while(true){
 
@@ -254,13 +259,13 @@ void brake(void){
 void drive(int speed){ //speed ~ duty cycle between [0; 100]
 	//TODO figure out calibration
 
-	//left wheel
+	//right wheel
 	TIM3->CCR1 = (int)(40*speed);
 	TIM3->CCR2 = 0;
 
 
-	//right wheel
-	TIM3->CCR3 = (int)(40*speed*0.9);
+	//left wheel
+	TIM3->CCR3 = (int)(40*speed*0.93);
 	TIM3->CCR4 = 0;
 
 }
@@ -326,19 +331,19 @@ void slightTurn(direction d){
 
 		switch(d){
 		case LEFT:
-			//left wheel
-			TIM3->CCR1 = 15*forward_speed;
-			TIM3->CCR2 = 0;
 			//right wheel
-			TIM3->CCR3 = 30*forward_speed;
+			TIM3->CCR1 = 30*forward_speed;
+			TIM3->CCR2 = 0;
+			//left wheel
+			TIM3->CCR3 = 25*forward_speed;
 			TIM3->CCR4 = 0;
 			break;
 		case RIGHT:
-			//left wheel
-			TIM3->CCR1 = 30*forward_speed;
-			TIM3->CCR2 = 0;
 			//right wheel
-			TIM3->CCR3 = 15*forward_speed;
+			TIM3->CCR1 = 25*forward_speed;
+			TIM3->CCR2 = 0;
+			//left wheel
+			TIM3->CCR3 = 30*forward_speed;
 			TIM3->CCR4 = 0;
 			break;
 		default: //indicate error
@@ -373,7 +378,7 @@ void optimise(){
 
 }
 
-/*
+
 State determineState(void){
 	int s1 = (GPIOA->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
 	int s2 = (GPIOA->IDR & GPIO_IDR_5)>>5;
@@ -383,7 +388,8 @@ State determineState(void){
 
 	State state = {s1, s2, s3, s4, s5};
 	return state;
-}*/
+}
+
 //========================
 //INTEERRUPT HANDLERS8
 //========================
@@ -395,20 +401,13 @@ void EXTI4_15_IRQHandler(void){
 	 * update cardinal direction for each case
 	 * keep which cardinals still need to be explored as opposed to directions (directions are relative whilst cardinals are absolute)
 	 */
-	//EXTI->IMR &= ~EXTI_IMR_MR4 & ~EXTI_IMR_MR5 & ~EXTI_IMR_MR6 & ~EXTI_IMR_MR7 & ~EXTI_IMR_MR8;
-
+	EXTI->IMR &= ~EXTI_IMR_MR4 & ~EXTI_IMR_MR5 & ~EXTI_IMR_MR6 & ~EXTI_IMR_MR7 & ~EXTI_IMR_MR8;
 
 	// 1st interrupt will trigger and disable other interruots until the PR flag is reset;
 
 	//lines pb4 to pb8 used for sensor inputs
 
-	int s1 = (GPIOA->IDR & GPIO_IDR_4)>>4; //s1==0 means line is low ; s1==1 means line is high
-	int s2 = (GPIOA->IDR & GPIO_IDR_5)>>5;
-	int s3 = (GPIOA->IDR & GPIO_IDR_6)>>6;
-	int s4 = (GPIOA->IDR & GPIO_IDR_7)>>7;
-	int s5 = (GPIOA->IDR & GPIO_IDR_8)>>8;
 
-	State state = {s1, s2, s3, s4, s5};
 
 	/*if(!isStarted){
 		//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
@@ -420,11 +419,185 @@ void EXTI4_15_IRQHandler(void){
 //	delay(2);// wait a bit before checking state
 
 //	State state = determineState();
-	GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8);
+	GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_2);
 
+	brake();
+	delay(2000);
+	bool detect = 0;
+
+	if((EXTI->PR & ~EXTI_PR_PR4)){ //s1 detected
+		//brake();
+		detect = 1;
+		drive(20);
+
+		delay(800);
+		brake();
+
+		state = determineState();
+
+
+	}
+	else{
+		if(EXTI->PR & ~EXTI_PR_PR5){ //s2 detected
+			//brake();
+			detect = 1;
+			drive(20);
+
+			delay(800);
+			brake();
+
+
+			state = determineState();
+
+		}
+		else{
+			if(EXTI->PR & ~EXTI_PR_PR6){ //s3 detected
+				//brake();
+				detect = 1;
+				drive(20);
+
+				delay(800);
+				brake();
+
+				state = determineState();
+
+			}
+			else{
+				if(EXTI->PR & ~EXTI_PR_PR7){ //s4 detected
+					//brake();
+					detect = 1;
+					drive(20);
+
+					delay(800);
+					brake();
+
+					state = determineState();
+
+				}
+				else{
+					if(EXTI->PR & ~EXTI_PR_PR8){ //s5 detected
+						brake();
+						detect = 1;
+						drive(20);
+
+						delay(800);
+						brake();
+						state = determineState();
+
+					}
+					else{ //false trigger??
+						EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
+						EXTI->IMR |= EXTI_IMR_MR4 | EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 | EXTI_IMR_MR8;
+						brake();
+						return;
+					}
+
+				}
+
+			}
+
+		}
+
+	}
+
+	if(detect){
+
+		if(stateCompare(state, STRAIGHT)){
+			GPIOB->ODR |= GPIO_ODR_2;
+			drive(50);
+			delay(1000);
+		}
+		else{
+			if(stateCompare(state, DRIFT_LEFT)){
+				GPIOB->ODR |= GPIO_ODR_6;
+				slightTurn(RIGHT);
+				delay(2000);
+			}
+			else{
+				if(stateCompare(state, DRIFT_RIGHT)){
+					GPIOB->ODR |= GPIO_ODR_7;
+					slightTurn(LEFT);
+					delay(2000);
+				}
+				else{
+					if(stateCompare(state, LEFT_CORNER)){
+						brake();
+
+					}
+					else{
+						if(stateCompare(state, LEFT_BRANCH)){
+							brake();
+
+						}
+						else{
+							if(stateCompare(state, RIGHT_CORNER)){
+								brake();
+
+							}
+							else{
+								if(stateCompare(state, RIGHT_BRANCH)){
+									brake();
+
+								}
+								else{
+									if(stateCompare(state, T_JUNCTION) || stateCompare(state, TJUNCTION) || stateCompare(state, t_junction)){
+										brake();
+										GPIOB->ODR |= GPIO_ODR_7 | GPIO_ODR_6;
+
+									}
+									else{
+										if(stateCompare(state, FOUR_WAY)){
+											brake();
+
+										}
+										else{
+											if(stateCompare(state, DEAD_END)){
+												brake();
+
+											}
+											else{
+												if(stateCompare(state, FINISH)){
+													brake();
+
+												}
+
+											}
+
+										}
+
+									}
+
+								}
+
+							}
+
+						}
+
+					}
+
+				}
+
+			}
+
+		}
+
+
+
+
+
+
+
+
+
+
+
+	}
+
+
+/*
 	if(stateCompare(state, STRAIGHT)){
 		drive(forward_speed);
-		GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8);
+		GPIOB->ODR = (GPIO_ODR_2);
 
 		EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
 		//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
@@ -445,7 +618,7 @@ void EXTI4_15_IRQHandler(void){
 
 				delay(200);
 				slightTurn(LEFT);
-				GPIOB->ODR |= (GPIO_ODR_6);
+				GPIOB->ODR |= (GPIO_ODR_7);
 
 				EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8; //clear the interrupt
 				//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
@@ -586,7 +759,7 @@ void EXTI4_15_IRQHandler(void){
 			}
 		}
 	}
-
+*/
 	/*if none of these states are occuring then its a false trigger
 	 * perhaps slow the robot down in this case?
 	 */
@@ -594,7 +767,7 @@ void EXTI4_15_IRQHandler(void){
 	//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
 	EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
-	//EXTI->IMR |= EXTI_IMR_MR4 | EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 | EXTI_IMR_MR8;
+	EXTI->IMR |= EXTI_IMR_MR4 | EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 | EXTI_IMR_MR8;
 
 
 }
