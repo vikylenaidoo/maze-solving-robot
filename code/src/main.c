@@ -38,6 +38,8 @@ State STRAIGHT 		= {WHITE, BLACK, WHITE, WHITE, WHITE};
 State T_JUNCTION 	= {BLACK, WHITE, BLACK, WHITE, WHITE};
 State t_junction 	= {BLACK, WHITE, BLACK, BLACK, WHITE};
 State TJUNCTION 	= {BLACK, WHITE, BLACK, WHITE, BLACK};
+State TJunction 	= {BLACK, WHITE, BLACK, BLACK, BLACK};
+
 
 State FOUR_WAY 		= {BLACK, BLACK, BLACK, WHITE, WHITE};
 State LEFT_CORNER 	= {BLACK, WHITE, WHITE, WHITE, WHITE};
@@ -65,7 +67,7 @@ void main(void){
 	//lcd_command(LINE_TWO);
 	//lcd_putstring("initialisation");
 	//printf("initialisation done \n");
-	isStarted = 1;
+	isStarted = 0;
 	flag =0;
 	while(true){
 
@@ -150,6 +152,7 @@ void init_GPIOA(void){ //used for outputs
 
 		EXTI->IMR |= EXTI_IMR_MR0; //UNMASK EXTI0
 		EXTI->FTSR |= EXTI_FTSR_TR0; // trigger on falling edge
+		EXTI->FTSR |= EXTI_RTSR_TR0;
 
 		EXTI->IMR |= EXTI_IMR_MR1; //UNMASK EXTI1
 		EXTI->FTSR |= EXTI_FTSR_TR1; // trigger on falling edge
@@ -175,7 +178,7 @@ void init_GPIOA(void){ //used for outputs
 		EXTI->FTSR |= EXTI_FTSR_TR8; // trigger on falling edge
 
 		//enable interrupt
-		NVIC_EnableIRQ(EXTI4_15_IRQn);
+	//	NVIC_EnableIRQ(EXTI4_15_IRQn);
 		NVIC_EnableIRQ(EXTI0_1_IRQn);
 
 
@@ -278,19 +281,19 @@ void turn(direction d){
 	//counter++;
 
 	switch(d){
-	case LEFT:
-		//left wheel
+	case RIGHT:
+		//right wheel
 		TIM3->CCR1 = 0;
 		TIM3->CCR2 = 40*turn_speed;
-		//right wheel
+		//left wheel
 		TIM3->CCR3 = 40*turn_speed;
 		TIM3->CCR4 = 0;
 		break;
-	case RIGHT:
-		//left wheel
+	case LEFT:
+		//right wheel
 		TIM3->CCR1 = 40*turn_speed;
 		TIM3->CCR2 = 0;
-		//right wheel
+		//left wheel
 		TIM3->CCR3 = 0;
 		TIM3->CCR4 = 40*turn_speed;
 		break;
@@ -298,7 +301,8 @@ void turn(direction d){
 		drive(forward_speed);
 		break;
 	default: //indicate error
-		drive(forward_speed);
+		//drive(forward_speed);
+		brake();
 		break;
 	}
 
@@ -321,7 +325,7 @@ void turnAround(){
 	TIM3->CCR3 = 100*speed;
 	TIM3->CCR4 = 0;
 
-	delay(rotate_time);
+	//delay(rotate_time);
 	brake();
 
 }
@@ -422,7 +426,7 @@ void EXTI4_15_IRQHandler(void){
 	GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_2);
 
 	brake();
-	delay(2000);
+	delay(1000);
 	bool detect = 0;
 
 	if((EXTI->PR & ~EXTI_PR_PR4)){ //s1 detected
@@ -540,9 +544,16 @@ void EXTI4_15_IRQHandler(void){
 
 								}
 								else{
-									if(stateCompare(state, T_JUNCTION) || stateCompare(state, TJUNCTION) || stateCompare(state, t_junction)){
+									if(stateCompare(state, TJunction) || stateCompare(state, T_JUNCTION) || stateCompare(state, TJUNCTION) || stateCompare(state, t_junction)){
 										brake();
 										GPIOB->ODR |= GPIO_ODR_7 | GPIO_ODR_6;
+										//delay(1000);
+										//drive(50);
+										delay(500);
+										brake();
+										//delay(1000);
+										turn(LEFT);
+										delay(5000);
 
 									}
 									else{
@@ -790,12 +801,16 @@ void EXTI0_1_IRQHandler(void){
 	if(GPIOA->IDR & GPIO_IDR_0){
 		//GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
 		//lcd_putstring("start btn");
+		NVIC_EnableIRQ(EXTI4_15_IRQn);
 		if(!isStarted ){
 			isStarted =1;
+			MODE = MAPPING;
 			//GPIOB->ODR |= GPIO_ODR_6; //set LED0 ON to indicate started
 			GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
 			delay(500);
 			GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
+
+			drive(50);
 		}
 		/*else{
 			isStarted =0;
