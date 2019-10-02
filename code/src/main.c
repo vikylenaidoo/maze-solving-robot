@@ -13,9 +13,9 @@
 //DEFINE GLOBAL VARIABLES
 //========================
 #define forward_speed 100
-#define turn_speed 50
-#define turn_time 5
-#define rotate_time 5
+#define turn_speed 60
+#define turn_time 2000
+#define rotate_time 5000
 
 State state = {0,0,0,0,0};
 
@@ -29,25 +29,32 @@ bool flag;
 //used for decision making and node identification
 enum detect{
 		WHITE=1,
-		BLACK=0
+		BLACK=0,
+		DONT_CARE = 2
 };
 
 
 State STRAIGHT 		= {WHITE, BLACK, WHITE, WHITE, WHITE};
 
-State T_JUNCTION 	= {BLACK, WHITE, BLACK, WHITE, WHITE};
-State t_junction 	= {BLACK, WHITE, BLACK, BLACK, WHITE};
-State TJUNCTION 	= {BLACK, WHITE, BLACK, WHITE, BLACK};
-State TJunction 	= {BLACK, WHITE, BLACK, BLACK, BLACK};
+State T_JUNCTION 	= {BLACK, WHITE, BLACK, DONT_CARE, DONT_CARE};
+//State t_junction 	= {BLACK, WHITE, BLACK, BLACK, WHITE};
+//State TJUNCTION 	= {BLACK, WHITE, BLACK, WHITE, BLACK};
+//State TJunction 	= {BLACK, WHITE, BLACK, BLACK, BLACK};
 
 
-State FOUR_WAY 		= {BLACK, BLACK, BLACK, WHITE, WHITE};
-State LEFT_CORNER 	= {BLACK, WHITE, WHITE, WHITE, WHITE};
-State RIGHT_CORNER 	= {WHITE, WHITE, BLACK, WHITE, WHITE};
-State LEFT_BRANCH 	= {BLACK, BLACK, WHITE, WHITE, WHITE};
-State RIGHT_BRANCH 	= {WHITE, BLACK, BLACK, WHITE, WHITE};
+State FOUR_WAY 		= {BLACK, BLACK, BLACK, DONT_CARE, DONT_CARE};
+//State FOURWAY 		= {BLACK, BLACK, BLACK, BLACK, WHITE};
+//State F_WAY 		= {BLACK, BLACK, BLACK, WHITE, BLACK};
+//State four_way 		= {BLACK, BLACK, BLACK, BLACK, BLACK};
+
+State LEFT_CORNER 	= {BLACK, WHITE, WHITE, DONT_CARE, DONT_CARE};
+State RIGHT_CORNER 	= {WHITE, WHITE, BLACK, DONT_CARE, DONT_CARE};
+State LEFT_BRANCH 	= {BLACK, BLACK, WHITE, DONT_CARE, DONT_CARE};
+State RIGHT_BRANCH 	= {WHITE, BLACK, BLACK, DONT_CARE, DONT_CARE};
+
 State DRIFT_LEFT 	= {WHITE, WHITE, WHITE, WHITE, BLACK};
 State DRIFT_RIGHT 	= {WHITE, WHITE, WHITE, BLACK, WHITE};
+
 State DEAD_END		= {WHITE, WHITE, WHITE, WHITE, WHITE};
 State FINISH 		= {BLACK, BLACK, BLACK, BLACK, BLACK};
 
@@ -69,6 +76,9 @@ void main(void){
 	//printf("initialisation done \n");
 	isStarted = 0;
 	flag =0;
+	//MODE = STANDBY;
+
+	GPIOB->IDR &= ~ GPIO_ODR_2;
 	while(true){
 
 			while(isStarted){
@@ -80,7 +90,7 @@ void main(void){
 					counter++;
 
 					while(MODE==MAPPING){
-						drive(forward_speed);
+						//drive(forward_speed);
 
 					}
 
@@ -268,7 +278,7 @@ void drive(int speed){ //speed ~ duty cycle between [0; 100]
 
 
 	//left wheel
-	TIM3->CCR3 = (int)(40*speed*0.93);
+	TIM3->CCR3 = (int)(40*speed*0.85);
 	TIM3->CCR4 = 0;
 
 }
@@ -283,32 +293,32 @@ void turn(direction d){
 	switch(d){
 	case RIGHT:
 		//right wheel
-		TIM3->CCR1 = 0;
+		TIM3->CCR1 = 1;
 		TIM3->CCR2 = 40*turn_speed;
 		//left wheel
 		TIM3->CCR3 = 40*turn_speed;
-		TIM3->CCR4 = 0;
+		TIM3->CCR4 = 1;
 		break;
 	case LEFT:
 		//right wheel
 		TIM3->CCR1 = 40*turn_speed;
-		TIM3->CCR2 = 0;
+		TIM3->CCR2 = 1;
 		//left wheel
-		TIM3->CCR3 = 0;
+		TIM3->CCR3 = 1;
 		TIM3->CCR4 = 40*turn_speed;
 		break;
 	case FORWARD:
 		drive(forward_speed);
 		break;
 	default: //indicate error
-		//drive(forward_speed);
+		turnAround(forward_speed);
 		brake();
 		break;
 	}
 
 	//delay for some time
-	delay(turn_time);
-	brake();
+	//delay(turn_time);
+	//brake();
 
 }
 
@@ -317,15 +327,15 @@ void turnAround(){
 //	directions_taken[counter] = BACKWARDS;
 	//counter++;
 
-	int speed = 10;
-	//left wheel
+	int speed = 50;
+	//right wheel
 	TIM3->CCR1 = 0;
 	TIM3->CCR2 = 100*speed;
-	//right wheel
+	//left wheel
 	TIM3->CCR3 = 100*speed;
 	TIM3->CCR4 = 0;
 
-	//delay(rotate_time);
+	delay(rotate_time);
 	brake();
 
 }
@@ -336,7 +346,7 @@ void slightTurn(direction d){
 		switch(d){
 		case LEFT:
 			//right wheel
-			TIM3->CCR1 = 30*forward_speed;
+			TIM3->CCR1 = 35*forward_speed;
 			TIM3->CCR2 = 0;
 			//left wheel
 			TIM3->CCR3 = 25*forward_speed;
@@ -351,19 +361,20 @@ void slightTurn(direction d){
 			TIM3->CCR4 = 0;
 			break;
 		default: //indicate error
-			turnAround(4); //or flash leds maybe? //should never actually occur
+			turnAround(); //or flash leds maybe? //should never actually occur
+			turnAround();
 		}
 
 }
 
 /*check wheteher the combination of states are corresponding to the given state*/
-bool stateCompare(State state1, State state2){
+bool stateCompare(State state1, State predefined){
 
-	if(state1.s1 != state2.s1) return false;
-	if(state1.s2 != state2.s2) return false;
-	if(state1.s3 != state2.s3) return false;
-	if(state1.s4 != state2.s4) return false;
-	if(state1.s5 != state2.s5) return false;
+	if(state1.s1 != predefined.s1 && predefined.s1 != DONT_CARE) return false;
+	if(state1.s2 != predefined.s2 && predefined.s2 != DONT_CARE) return false;
+	if(state1.s3 != predefined.s3 && predefined.s3 != DONT_CARE) return false;
+	if(state1.s4 != predefined.s4 && predefined.s4 != DONT_CARE) return false;
+	if(state1.s5 != predefined.s5 && predefined.s5 != DONT_CARE) return false;
 
 	return true;
 }
@@ -405,8 +416,10 @@ void EXTI4_15_IRQHandler(void){
 	 * update cardinal direction for each case
 	 * keep which cardinals still need to be explored as opposed to directions (directions are relative whilst cardinals are absolute)
 	 */
-	EXTI->IMR &= ~EXTI_IMR_MR4 & ~EXTI_IMR_MR5 & ~EXTI_IMR_MR6 & ~EXTI_IMR_MR7 & ~EXTI_IMR_MR8;
 
+
+	/*EXTI->IMR &= ~EXTI_IMR_MR4 & ~EXTI_IMR_MR5 & ~EXTI_IMR_MR6 & ~EXTI_IMR_MR7 & ~EXTI_IMR_MR8;
+	NVIC_DisableIRQ(EXTI4_15_IRQn);
 	// 1st interrupt will trigger and disable other interruots until the PR flag is reset;
 
 	//lines pb4 to pb8 used for sensor inputs
@@ -422,19 +435,21 @@ void EXTI4_15_IRQHandler(void){
 
 //	delay(2);// wait a bit before checking state
 
-//	State state = determineState();
-	GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_2);
-
-	brake();
+	State state = determineState();
+	//GPIOB->ODR &= (~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_2);
 	delay(1000);
+	brake();
+	delay(500);
 	bool detect = 0;
+
+
 
 	if((EXTI->PR & ~EXTI_PR_PR4)){ //s1 detected
 		//brake();
 		detect = 1;
-		drive(20);
+		drive(30);
 
-		delay(800);
+		delay(1000);
 		brake();
 
 		state = determineState();
@@ -445,9 +460,10 @@ void EXTI4_15_IRQHandler(void){
 		if(EXTI->PR & ~EXTI_PR_PR5){ //s2 detected
 			//brake();
 			detect = 1;
-			drive(20);
 
-			delay(800);
+			drive(30);
+
+			delay(1000);
 			brake();
 
 
@@ -458,9 +474,9 @@ void EXTI4_15_IRQHandler(void){
 			if(EXTI->PR & ~EXTI_PR_PR6){ //s3 detected
 				//brake();
 				detect = 1;
-				drive(20);
+				drive(30);
 
-				delay(800);
+				delay(1000);
 				brake();
 
 				state = determineState();
@@ -470,9 +486,9 @@ void EXTI4_15_IRQHandler(void){
 				if(EXTI->PR & ~EXTI_PR_PR7){ //s4 detected
 					//brake();
 					detect = 1;
-					drive(20);
+					drive(30);
 
-					delay(800);
+					delay(1000);
 					brake();
 
 					state = determineState();
@@ -482,9 +498,9 @@ void EXTI4_15_IRQHandler(void){
 					if(EXTI->PR & ~EXTI_PR_PR8){ //s5 detected
 						brake();
 						detect = 1;
-						drive(20);
+						drive(30);
 
-						delay(800);
+						delay(1000);
 						brake();
 						state = determineState();
 
@@ -514,6 +530,9 @@ void EXTI4_15_IRQHandler(void){
 		else{
 			if(stateCompare(state, DRIFT_LEFT)){
 				GPIOB->ODR |= GPIO_ODR_6;
+				drive(50);
+				delay(500);
+				brake();
 				slightTurn(RIGHT);
 				delay(2000);
 			}
@@ -526,44 +545,109 @@ void EXTI4_15_IRQHandler(void){
 				else{
 					if(stateCompare(state, LEFT_CORNER)){
 						brake();
+						delay(100);
+						drive(50);
+						delay(2200);
+						brake();
+						delay(100);
+						turn(LEFT);
+						delay(3000);
+						brake();
 
 					}
 					else{
 						if(stateCompare(state, LEFT_BRANCH)){
 							brake();
+							delay(100);
+							drive(50);
+							delay(2200);
+							brake();
+							delay(100);
+							turn(LEFT);
+							delay(3100);
+							brake();
+
 
 						}
 						else{
 							if(stateCompare(state, RIGHT_CORNER)){
+								brake();
+								delay(100);
+								drive(50);
+								delay(1800);
+								brake();
+								delay(100);
+								turn(RIGHT);
+								delay(3000);
 								brake();
 
 							}
 							else{
 								if(stateCompare(state, RIGHT_BRANCH)){
 									brake();
+									delay(100);
+									drive(forward_speed);
 
 								}
 								else{
-									if(stateCompare(state, TJunction) || stateCompare(state, T_JUNCTION) || stateCompare(state, TJUNCTION) || stateCompare(state, t_junction)){
+									if(stateCompare(state, T_JUNCTION)){
 										brake();
-										GPIOB->ODR |= GPIO_ODR_7 | GPIO_ODR_6;
-										//delay(1000);
-										//drive(50);
-										delay(500);
+										delay(100);
+										drive(80);
+										delay(1800);
 										brake();
-										//delay(1000);
+										delay(300);
 										turn(LEFT);
-										delay(5000);
+										delay(3000);
+										brake();
 
 									}
 									else{
 										if(stateCompare(state, FOUR_WAY)){
 											brake();
+											NVIC_DisableIRQ(EXTI4_15_IRQn);
+											brake();
+											delay(200);
+											drive(80);
+											delay(190);
+											brake();
+											delay(200);
+
+											state = determineState();
+
+											if(stateCompare(state, FOUR_WAY) || stateCompare(state, T_JUNCTION)){
+												brake();
+												delay(100);
+												drive(50);
+												delay(2200);
+												brake();
+												delay(100);
+												turn(LEFT);
+												delay(3000);
+												brake();
+
+											}
+											else{
+
+												if(stateCompare(state, FINISH)){
+													brake();
+													GPIOB->ODR |= GPIO_ODR_2;
+
+												}
+											}
+
+
+
 
 										}
 										else{
 											if(stateCompare(state, DEAD_END)){
+												//drive(50);
+												//delay(1000);
 												brake();
+
+												state = determineState();
+
 
 											}
 											else{
@@ -591,7 +675,6 @@ void EXTI4_15_IRQHandler(void){
 			}
 
 		}
-
 
 
 
@@ -777,8 +860,9 @@ void EXTI4_15_IRQHandler(void){
 
 	//NVIC_ClearPendingIRQ(EXTI4_15_IRQn);
 
-	EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
-	EXTI->IMR |= EXTI_IMR_MR4 | EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 | EXTI_IMR_MR8;
+	//EXTI->PR |= EXTI_PR_PR4| EXTI_PR_PR5 | EXTI_PR_PR6 |EXTI_PR_PR7| EXTI_PR_PR8;
+	//EXTI->IMR |= EXTI_IMR_MR4 | EXTI_IMR_MR5 | EXTI_IMR_MR6 | EXTI_IMR_MR7 | EXTI_IMR_MR8;
+	//NVIC_EnableIRQ(EXTI4_15_IRQn);
 
 
 }
@@ -798,24 +882,40 @@ void EXTI0_1_IRQHandler(void){
 		GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
 		flag = !flag;
 	}*/
-	if(GPIOA->IDR & GPIO_IDR_0){
+	if(EXTI->PR & ~EXTI_PR_PR0){ //GPIOA->IDR & GPIO_IDR_0
 		//GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
 		//lcd_putstring("start btn");
-		NVIC_EnableIRQ(EXTI4_15_IRQn);
+		//NVIC_EnableIRQ(EXTI4_15_IRQn);
 		if(!isStarted ){
 			isStarted =1;
 			MODE = MAPPING;
 			//GPIOB->ODR |= GPIO_ODR_6; //set LED0 ON to indicate started
-			GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
+			//GPIOB->ODR |= GPIO_ODR_6 | GPIO_ODR_7 | GPIO_ODR_8;
 			delay(500);
 			GPIOB->ODR &= ~GPIO_ODR_6 & ~GPIO_ODR_7 & ~GPIO_ODR_8;
 
-			drive(50);
+
+			drive(80);
+			delay(3000);
+			brake();
+			delay(1000);
+			GPIOB->ODR |= GPIO_ODR_2;
+
+
+
 		}
 		/*else{
 			isStarted =0;
 			GPIOB->ODR &= ~GPIO_ODR_6; //set LED0 OFF to indicate not started
 		}*/
+
+	}
+	else{
+		if(EXTI->PR & ~EXTI_PR_PR1){
+
+
+
+		}
 
 	}
 	/*else{
